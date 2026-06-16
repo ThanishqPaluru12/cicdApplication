@@ -1,74 +1,44 @@
-name: Vercel CD Pipeline
+name: Deploy To Vercel
 
 on:
-  workflow_run:
-    workflows:
-      - Build Pipeline
-    types:
-      - completed
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   deploy:
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main'
-
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Check Python CI status
+      - name: Resolve Vercel org id
+        id: resolve_org
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
-          BRANCH_NAME: ${{ github.event.workflow_run.head_branch }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          echo "Checking Python CI status for commit: $COMMIT_SHA"
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "Missing required secret: VERCEL_TOKEN"
+            exit 1
+          fi
 
-          for i in {1..30}; do
-            STATUS=$(gh run list \
-              --workflow "Python CI" \
-              --commit "$COMMIT_SHA" \
-              --branch "$BRANCH_NAME" \
-              --json status,conclusion \
-              --jq '.[0] | "\(.status) \(.conclusion)"')
+          RESPONSE=$(curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" https://api.vercel.com/v2/user)
+          ORG_ID=$(printf '%s' "$RESPONSE" | python3 -c "import json,sys; p=json.load(sys.stdin); u=p.get('user',{}); print(u.get('defaultTeamId') or u.get('id') or '')")
 
-            echo "Python CI status: $STATUS"
+          if [ -z "$ORG_ID" ]; then
+            echo "Could not resolve Vercel org id from token"
+            exit 1
+          fi
 
-            if echo "$STATUS" | grep -q "completed success"; then
-              echo "Python CI passed."
-              exit 0
-            fi
-
-            if echo "$STATUS" | grep -q "completed failure"; then
-              echo "Python CI failed."
-              exit 1
-            fi
-
-            if echo "$STATUS" | grep -q "completed cancelled"; then
-              echo "Python CI was cancelled."
-              exit 1
-            fi
-
-            echo "Python CI is not completed yet. Checking again..."
-            sleep 10
-          done
-
-          echo "Python CI did not complete successfully in time."
-          exit 1
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Pull Vercel environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Build project
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          echo "org_id=$ORG_ID" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to Vercel
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        uses: amondnet/vercel-action@v42
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          vercel-org-id: ${{ steps.resolve_org.outputs.org_id }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: --prod
