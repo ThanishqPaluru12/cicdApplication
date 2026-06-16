@@ -8,6 +8,18 @@ This repository contains a simple Python calculator program and GitHub Actions w
 python calculator.py
 ```
 
+## Web UI preview
+
+This project now includes a static calculator UI that mirrors the same operations in
+`calculator.py`:
+
+- Addition
+- Subtraction
+- Multiplication
+- Division (with divide-by-zero error handling)
+
+Open `index.html` in a browser to test the interface.
+
 ## Run tests
 
 ```bash

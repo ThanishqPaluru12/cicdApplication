@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calculator UI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="card">
+        <p class="eyebrow">CI/CD Calculator</p>
+        <h1>Elegant Calculator</h1>
+        <p class="subtitle">
+          A visual layer for the same operations in your Python code: add, subtract,
+          multiply, and divide.
+        </p>
+
+        <form id="calc-form" class="form" novalidate>
+          <label>
+            <span>First number</span>
+            <input id="first" type="number" step="any" required />
+          </label>
+
+          <label>
+            <span>Second number</span>
+            <input id="second" type="number" step="any" required />
+          </label>
+
+          <label>
+            <span>Operation</span>
+            <select id="operation" required>
+              <option value="add">Addition (+)</option>
+              <option value="subtract">Subtraction (-)</option>
+              <option value="multiply">Multiplication (x)</option>
+              <option value="divide">Division (/)</option>
+            </select>
+          </label>
+
+          <div class="buttons">
+            <button type="submit" class="primary">Calculate</button>
+            <button type="button" id="reset" class="ghost">Reset</button>
+          </div>
+        </form>
+
+        <section class="result-area" aria-live="polite">
+          <p class="result-label">Result</p>
+          <p id="result" class="result">0</p>
+          <p id="message" class="message"></p>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
