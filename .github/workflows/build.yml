@@ -1,6 +1,7 @@
-name: Build Pipeline
+name: Build, CI and Deploy To Vercel
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - "**"
@@ -11,6 +12,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,7 +22,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Build check (compile source)
+      - name: Build check compile source
         run: python -m py_compile calculator.py
 
       - name: Upload source artifact
@@ -31,3 +33,63 @@ jobs:
             calculator.py
             tests/test_calculator.py
             README.md
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+  deploy:
+    runs-on: ubuntu-latest
+
+    needs:
+      - build
+      - test
+
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Resolve Vercel org id
+        id: resolve_org
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "Missing required secret: VERCEL_TOKEN"
+            exit 1
+          fi
+
+          RESPONSE=$(curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" https://api.vercel.com/v2/user)
+
+          ORG_ID=$(printf '%s' "$RESPONSE" | python3 -c "import json,sys; p=json.load(sys.stdin); u=p.get('user',{}); print(u.get('defaultTeamId') or u.get('id') or '')")
+
+          if [ -z "$ORG_ID" ]; then
+            echo "Could not resolve Vercel org id from token"
+            exit 1
+          fi
+
+          echo "org_id=$ORG_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v42
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          vercel-org-id: ${{ steps.resolve_org.outputs.org_id }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: --prod
