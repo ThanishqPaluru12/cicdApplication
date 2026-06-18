@@ -114,12 +114,12 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::<404147232360>:role/github-calculator-deploy-role
+          role-to-assume: arn:aws:iam::404147232360:role/github-calculator-deploy-role
           aws-region: us-east-1
 
       - name: Upload website files to S3
         run: |
-          aws s3 sync . s3://<thanishq-calculator-app> \
+          aws s3 sync . s3://thanishq-calculator-app \
             --delete \
             --exclude "*" \
             --include "index.html" \
