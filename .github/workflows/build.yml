@@ -100,10 +100,6 @@ jobs:
   deploy-aws:
     runs-on: ubuntu-latest
 
-    permissions:
-      id-token: write
-      contents: read
-
     needs:
       - build
       - test
@@ -116,29 +112,23 @@ jobs:
 
       - name: Validate required AWS secrets
         env:
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-          AWS_CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.AWS_CLOUDFRONT_DISTRIBUTION_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
-          test -n "${AWS_REGION:-}" || (echo "Missing secret AWS_REGION" && exit 1)
-          test -n "${AWS_ROLE_TO_ASSUME:-}" || (echo "Missing secret AWS_ROLE_TO_ASSUME" && exit 1)
-          test -n "${AWS_S3_BUCKET:-}" || (echo "Missing secret AWS_S3_BUCKET" && exit 1)
-          test -n "${AWS_CLOUDFRONT_DISTRIBUTION_ID:-}" || (echo "Missing secret AWS_CLOUDFRONT_DISTRIBUTION_ID" && exit 1)
+          test -n "${AWS_ACCESS_KEY_ID:-}" || (echo "Missing secret AWS_ACCESS_KEY_ID" && exit 1)
+          test -n "${AWS_SECRET_ACCESS_KEY:-}" || (echo "Missing secret AWS_SECRET_ACCESS_KEY" && exit 1)
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          role-session-name: github-actions-calculator-deploy
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
       - name: Upload website files to S3
-        env:
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         run: |
-          aws s3 sync . s3://${AWS_S3_BUCKET} \
+          aws s3 sync . s3://thanishq-calculator-app \
             --delete \
             --exclude "*" \
             --include "index.html" \
@@ -146,19 +136,11 @@ jobs:
             --include "app.js"
 
       - name: Refresh CloudFront cache
-        env:
-          AWS_CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.AWS_CLOUDFRONT_DISTRIBUTION_ID }}
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id "${AWS_CLOUDFRONT_DISTRIBUTION_ID}" \
+            --distribution-id E3N363XTKO1ENZ \
             --paths "/*"
 
       - name: Show AWS website URL
-        env:
-          AWS_SITE_URL: ${{ secrets.AWS_SITE_URL }}
         run: |
-          if [ -n "${AWS_SITE_URL:-}" ]; then
-            echo "AWS site deployed at: ${AWS_SITE_URL}"
-          else
-            echo "AWS deployment completed. Set AWS_SITE_URL repository secret for a friendly link."
-          fi
+          echo "AWS site deployed at: https://dlr7ie5dsfctj.cloudfront.net/"
